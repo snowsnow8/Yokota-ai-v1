@@ -30,72 +30,18 @@ from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.output_parser import StrOutputParser
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers import EnsembleRetriever
-import gspread
+# import gspread  # G-Sheets: Temporarily disabled
 import streamlit as st
-from google.oauth2.service_account import Credentials
+# from google.oauth2.service_account import Credentials # G-Sheets: Temporarily disabled
 import chromadb
 
-LOG_FILE_PATH = os.path.join("logs", "chat_history.csv")
+# LOG_FILE_PATH = os.path.join("logs", "chat_history.csv") # G-Sheets: Temporarily disabled
 
-def get_gspread_client():
-    """
-    Connects to Google Sheets using credentials from Streamlit secrets.
-    """
-    try:
-        creds_dict = st.secrets["connections"]["gspread"]["credentials"]
-        creds = Credentials.from_service_account_info(creds_dict)
-        scoped_creds = creds.with_scopes([
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive"
-        ])
-        client = gspread.authorize(scoped_creds)
-        return client
-    except Exception as e:
-        st.error(f"Google Sheetsへの接続に失敗しました: {e}")
-        return None
+# def get_gspread_client(): # G-Sheets: Temporarily disabled
+#    (略)
 
-def log_interaction(mode, question, source_docs, response):
-    """
-    Logs the interaction to the Google Sheet specified in Streamlit secrets.
-    """
-    try:
-        client = get_gspread_client()
-        if client is None:
-            return
-
-        spreadsheet_name = st.secrets["connections"]["gspread"]["spreadsheet"]
-        worksheet = client.open(spreadsheet_name).sheet1
-
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # Format source documents for logging
-        formatted_sources = "No RAG sources used"
-        if source_docs:
-            sources_list = []
-            for doc in source_docs:
-                source = doc.metadata.get('source', 'N/A')
-                source_basename = os.path.basename(source)
-                page_info = ""
-                if 'page' in doc.metadata:
-                    page_info = f" (Page: {doc.metadata['page'] + 1})"
-                elif 'page_number' in doc.metadata:
-                    page_info = f" (Slide: {doc.metadata['page_number']})"
-                sources_list.append(f"{source_basename}{page_info}")
-            formatted_sources = " | ".join(sources_list)
-
-        # Prepare the row data in the correct order
-        new_row = [
-            timestamp,
-            LECTURE_MODES.get(mode, "Unknown"),
-            question,
-            response,
-            formatted_sources
-        ]
-        worksheet.append_row(new_row)
-
-    except Exception as e:
-        # Silently fail for users, but log to console for developers
-        print(f"Error writing to Google Sheet: {e}")
+# def log_interaction(mode, question, source_docs, response): # G-Sheets: Temporarily disabled
+#    (略)
 
 
 # --- Global Prompt Templates ---
@@ -225,39 +171,6 @@ def split_documents(documents: list) -> list:
     )
     chunks = text_splitter.split_documents(documents)
     return chunks
-
-def create_vector_db(mode: str):
-    db_path = DB_PATHS[mode]
-    if not os.path.exists(db_path):
-        print(f"Creating new vector DB for mode '{mode}' at {db_path}...")
-        documents = load_documents(mode)
-        
-        if not documents:
-            print(f"FAILURE - No documents were loaded for mode '{mode}'. Check file paths and integrity.")
-            return
-
-        chunks = split_documents(documents)
-
-        if not chunks:
-            print(f"FAILURE - Document splitting for mode '{mode}' resulted in 0 chunks.")
-            return
-
-        filtered_chunks = filter_complex_metadata(chunks)
-
-        if not filtered_chunks:
-            print(f"FAILURE - All chunks were filtered out for mode '{mode}'.")
-            return
-
-        embedding_function = OpenAIEmbeddings(model=EMBEDDING_MODEL)
-        
-        client = chromadb.PersistentClient(path=db_path)
-
-        Chroma.from_documents(
-            documents=filtered_chunks, 
-            embedding=embedding_function,
-            client=client
-        )
-        print(f"Vector DB for '{mode}' created and persisted at {db_path}")
 
 def search_documents(db, query: str):
     """
@@ -499,7 +412,7 @@ def get_agent_response(mode: str, query: str, history: list, lecture_title: str,
             if "Udemyのコースページ" not in final_response:
                 final_response += udemy_promo_text
         
-        log_interaction(mode, query, retrieved_docs, final_response)
+        # log_interaction(mode, query, retrieved_docs, final_response) # G-Sheets: Temporarily disabled
         return final_response, retrieved_docs
     else:
         # For general queries, search the entire DB without filters.
@@ -518,5 +431,5 @@ def get_agent_response(mode: str, query: str, history: list, lecture_title: str,
             if "Udemyのコースページ" not in response:
                 response += udemy_promo_text
         
-        log_interaction(mode, query, docs, response)
+        # log_interaction(mode, query, docs, response) # G-Sheets: Temporarily disabled
         return response, docs

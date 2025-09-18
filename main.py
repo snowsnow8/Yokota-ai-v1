@@ -64,7 +64,8 @@ selected_mode = st.sidebar.radio(
 )
 
 # --- データベースの初期化 ---
-initialize_databases()
+# アプリ起動時にDBの存在を確認する（作成は行わない）
+# initialize_databases() # この時点では呼び出さない
 
 
 # --- チャット履歴の管理 ---

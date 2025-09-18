@@ -28,11 +28,12 @@ from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.output_parser import StrOutputParser
-from langchain.retrievers import BM25Retriever, EnsembleRetriever
+from langchain_community.retrievers import BM25Retriever
+from langchain.retrievers import EnsembleRetriever
 import gspread
 import streamlit as st
 from google.oauth2.service_account import Credentials
-from chromadb.config import Settings
+import chromadb
 
 LOG_FILE_PATH = os.path.join("logs", "chat_history.csv")
 
@@ -249,40 +250,14 @@ def create_vector_db(mode: str):
 
         embedding_function = OpenAIEmbeddings(model=EMBEDDING_MODEL)
         
-        client_settings = Settings(
-            chroma_db_impl="sqlite",
-            persist_directory=db_path,
-            anonymized_telemetry=False,
-        )
+        client = chromadb.PersistentClient(path=db_path)
 
-        db = Chroma.from_documents(
-            filtered_chunks, 
-            embedding_function, 
-            persist_directory=db_path,
-            client_settings=client_settings
+        Chroma.from_documents(
+            documents=filtered_chunks, 
+            embedding=embedding_function,
+            client=client
         )
-        db.persist()
         print(f"Vector DB for '{mode}' created and persisted at {db_path}")
-
-def load_vector_db(mode: str):
-    """
-    Load an existing vector database.
-    """
-    db_path = DB_PATHS[mode]
-    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
-
-    client_settings = Settings(
-        chroma_db_impl="sqlite",
-        persist_directory=db_path,
-        anonymized_telemetry=False,
-    )
-    
-    db = Chroma(
-        persist_directory=db_path, 
-        embedding_function=embeddings,
-        client_settings=client_settings
-    )
-    return db
 
 def search_documents(db, query: str):
     """
@@ -329,16 +304,11 @@ def get_retriever(mode: str, filter_dict: dict = None):
     
     embedding_function = OpenAIEmbeddings(model=EMBEDDING_MODEL)
 
-    client_settings = Settings(
-        chroma_db_impl="sqlite",
-        persist_directory=db_path,
-        anonymized_telemetry=False,
-    )
+    client = chromadb.PersistentClient(path=db_path)
 
     chroma_vectorstore = Chroma(
-        persist_directory=db_path, 
-        embedding_function=embedding_function,
-        client_settings=client_settings
+        client=client, 
+        embedding_function=embedding_function
     )
 
     search_kwargs = {'k': 10}

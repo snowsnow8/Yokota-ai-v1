@@ -29,54 +29,72 @@ from langchain.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceh
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.output_parser import StrOutputParser
 from langchain.retrievers import BM25Retriever, EnsembleRetriever
+import gspread
+import streamlit as st
+from google.oauth2.service_account import Credentials
 
 LOG_FILE_PATH = os.path.join("logs", "chat_history.csv")
 
+def get_gspread_client():
+    """
+    Connects to Google Sheets using credentials from Streamlit secrets.
+    """
+    try:
+        creds_dict = st.secrets["connections"]["gspread"]["credentials"]
+        creds = Credentials.from_service_account_info(creds_dict)
+        scoped_creds = creds.with_scopes([
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ])
+        client = gspread.authorize(scoped_creds)
+        return client
+    except Exception as e:
+        st.error(f"Google Sheetsへの接続に失敗しました: {e}")
+        return None
+
 def log_interaction(mode, question, source_docs, response):
     """
-    Logs the user's question, the AI's answer, and referenced source metadata to a CSV file.
+    Logs the interaction to the Google Sheet specified in Streamlit secrets.
     """
-    log_dir = os.path.dirname(LOG_FILE_PATH)
-    os.makedirs(log_dir, exist_ok=True)
-    
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Format source documents for logging - just metadata
-    formatted_sources = "No RAG sources used"
-    if source_docs:
-        sources_list = []
-        for doc in source_docs:
-            source = doc.metadata.get('source', 'N/A')
-            source_basename = os.path.basename(source)
-            page_info = ""
-            
-            # For PDFs from PyPDFLoader (0-indexed)
-            if 'page' in doc.metadata:
-                page_info = f" (Page: {doc.metadata['page'] + 1})"
-            # For PPTX from UnstructuredPowerPointLoader (1-based)
-            elif 'page_number' in doc.metadata:
-                page_info = f" (Slide: {doc.metadata['page_number']})"
-
-            sources_list.append(f"{source_basename}{page_info}")
-        formatted_sources = " | ".join(sources_list)
-
-    new_log_entry = {
-        "timestamp": timestamp,
-        "lecture_mode": LECTURE_MODES.get(mode, "Unknown"),
-        "question": question,
-        "answer": response,
-        "referenced_sources": formatted_sources
-    }
-
-    file_exists = os.path.isfile(LOG_FILE_PATH)
     try:
-        with open(LOG_FILE_PATH, "a", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=new_log_entry.keys())
-            if not file_exists:
-                writer.writeheader()
-            writer.writerow(new_log_entry)
+        client = get_gspread_client()
+        if client is None:
+            return
+
+        spreadsheet_name = st.secrets["connections"]["gspread"]["spreadsheet"]
+        worksheet = client.open(spreadsheet_name).sheet1
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Format source documents for logging
+        formatted_sources = "No RAG sources used"
+        if source_docs:
+            sources_list = []
+            for doc in source_docs:
+                source = doc.metadata.get('source', 'N/A')
+                source_basename = os.path.basename(source)
+                page_info = ""
+                if 'page' in doc.metadata:
+                    page_info = f" (Page: {doc.metadata['page'] + 1})"
+                elif 'page_number' in doc.metadata:
+                    page_info = f" (Slide: {doc.metadata['page_number']})"
+                sources_list.append(f"{source_basename}{page_info}")
+            formatted_sources = " | ".join(sources_list)
+
+        # Prepare the row data in the correct order
+        new_row = [
+            timestamp,
+            LECTURE_MODES.get(mode, "Unknown"),
+            question,
+            response,
+            formatted_sources
+        ]
+        worksheet.append_row(new_row)
+
     except Exception as e:
-        print(f"Error writing to log file: {e}")
+        # Silently fail for users, but log to console for developers
+        print(f"Error writing to Google Sheet: {e}")
+
 
 # --- Global Prompt Templates ---
 

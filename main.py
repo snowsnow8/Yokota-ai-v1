@@ -3,7 +3,7 @@ load_dotenv()
 
 import streamlit as st
 import os
-from functions import create_vector_db, get_agent_response
+from functions import get_agent_response
 from constants import LECTURE_MODES, DB_PATHS
 
 # --- アバター定義 ---
@@ -23,23 +23,12 @@ st.set_page_config(
 
 def initialize_databases():
     """
-    Checks for and creates databases. Uses st.session_state to ensure this
-    heavy operation only runs once per user session, while still allowing
-    UI elements like st.toast.
+    Creates or verifies databases. Uses st.session_state to ensure this
+    heavy operation only runs once per user session.
     """
-    if "db_initialized" in st.session_state:
-        return
-
-    st.toast("初回起動のため、データベースを準備しています...")
-    for mode in LECTURE_MODES.keys():
-        db_path = DB_PATHS[mode]
-        if not os.path.exists(db_path):
-            # This print goes to the console for debugging
-            print(f"Creating database for '{mode}' mode...")
-            create_vector_db(mode)
-    
-    st.toast("データベースの準備が完了しました。")
-    st.session_state["db_initialized"] = True
+    # This function is currently disabled in favor of a local-first approach
+    # where databases are pre-built.
+    pass
 
 # --- UI要素 ---
 st.title("Yokota-AI")

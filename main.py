@@ -16,25 +16,25 @@ st.set_page_config(
 
 # --- データベースの初期化 ---
 
-# def initialize_databases():
-#     """
-#     Checks for and creates databases. Uses st.session_state to ensure this
-#     heavy operation only runs once per user session, while still allowing
-#     UI elements like st.toast.
-#     """
-#     if "db_initialized" in st.session_state:
-#         return
-#
-#     st.toast("初回起動のため、データベースを準備しています...")
-#     for mode in LECTURE_MODES.keys():
-#         db_path = DB_PATHS[mode]
-#         if not os.path.exists(db_path):
-#             # This print goes to the console for debugging
-#             print(f"Creating database for '{mode}' mode...")
-#             create_vector_db(mode)
-#     
-#     st.toast("データベースの準備が完了しました。")
-#     st.session_state["db_initialized"] = True
+def initialize_databases():
+    """
+    Checks for and creates databases. Uses st.session_state to ensure this
+    heavy operation only runs once per user session, while still allowing
+    UI elements like st.toast.
+    """
+    if "db_initialized" in st.session_state:
+        return
+
+    st.toast("初回起動のため、データベースを準備しています...")
+    for mode in LECTURE_MODES.keys():
+        db_path = DB_PATHS[mode]
+        if not os.path.exists(db_path):
+            # This print goes to the console for debugging
+            print(f"Creating database for '{mode}' mode...")
+            create_vector_db(mode)
+    
+    st.toast("データベースの準備が完了しました。")
+    st.session_state["db_initialized"] = True
 
 # --- UI要素 ---
 st.title("Yokota-AI")

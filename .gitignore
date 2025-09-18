@@ -51,3 +51,18 @@ data/
 # Editor-specific files
 .vscode/
 
+# Exclude specific directories and files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.venv/
+.env
+/data/
+
+# Exclude macOS specific files
+.DS_Store
+.AppleDouble
+

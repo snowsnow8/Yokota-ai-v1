@@ -1,11 +1,16 @@
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+from dotenv import load_dotenv
+load_dotenv()
 
 import streamlit as st
 import os
+from functions import create_vector_db, get_agent_response
 from constants import LECTURE_MODES, DB_PATHS
-from functions import load_documents, split_documents, create_vector_db, get_agent_response
+
+# --- アバター定義 ---
+AVATARS = {
+    "user": "assets/user_icon_navy.svg",
+    "assistant": "assets/yokota_icon.jpg"
+}
 
 # --- ページ設定 ---
 st.set_page_config(
@@ -41,23 +46,6 @@ st.title("Yokota-AI")
 st.caption("講演内容に関する質問に、横田AIがお答えします。")
 st.caption("左のサイドバーで講演を選択し、質問を入力してください。")
 
-st.markdown(
-    """
-    <style>
-        /* ユーザーアイコンの色をテーマのプライマリーカラーに合わせる (強制) */
-        [data-testid="stChatMessage"] [data-testid="stAvatar"] [data-testid="chat-avatar-user-initials"] {
-            background-color: #001f3f !important; /* config.tomlで設定した紺色を最優先で適用 */
-        }
-        .st-emotion-cache-1c7y2kd {
-            flex-direction: row-reverse;
-            text-align: right;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
 st.sidebar.header("コンセプト")
 st.sidebar.markdown(
     """
@@ -74,6 +62,10 @@ selected_mode = st.sidebar.radio(
     format_func=lambda x: LECTURE_MODES[x],
     label_visibility="collapsed"
 )
+
+# --- データベースの初期化 ---
+initialize_databases()
+
 
 # --- チャット履歴の管理 ---
 
@@ -134,20 +126,18 @@ if "messages" not in st.session_state:
 
 # アプリ再実行時にチャット履歴からメッセージを表示
 for message in st.session_state.messages:
-    if message["role"] == "assistant":
-        with st.chat_message("assistant", avatar="assets/yokota_icon.jpg"):
-            st.markdown(message["content"])
-    else:
-        with st.chat_message("user", avatar="assets/user_icon_navy.svg"):
-            st.markdown(message["content"])
+    with st.chat_message(message["role"], avatar=AVATARS[message["role"]]):
+        st.markdown(message["content"])
 
 # ユーザーの入力に反応
 if prompt := st.chat_input("講演に関する質問をどうぞ"):
-    # ユーザーメッセージをチャットメッセージコンテナに表示
-    with st.chat_message("user", avatar="assets/user_icon_navy.svg"):
-        st.markdown(prompt)
     # ユーザーメッセージをチャット履歴に追加
     st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    # ユーザーメッセージをチャットメッセージコンテナに表示
+    with st.chat_message("user", avatar=AVATARS["user"]):
+        st.markdown(prompt)
+
     st.session_state.interaction_count += 1
 
     # アシスタントの応答を取得
@@ -162,7 +152,7 @@ if prompt := st.chat_input("講演に関する質問をどうぞ"):
         )
     
     # アシスタントの応答をチャットメッセージコンテナに表示
-    with st.chat_message("assistant", avatar="assets/yokota_icon.jpg"):
+    with st.chat_message("assistant", avatar=AVATARS["assistant"]):
         st.markdown(response)
         # if source_docs: # RAGが使用された場合のみ、参照ソースを表示
         #     with st.expander("参照された情報ソース"):
